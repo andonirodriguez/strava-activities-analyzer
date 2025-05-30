@@ -8,10 +8,16 @@ import webbrowser
 from flask import Flask, request
 from config import STRAVA_CONFIG
 import streamlit as st
+import uuid
+from urllib.parse import parse_qs, urlparse
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def generate_auth_state():
+    """Genera un estado único para la autenticación"""
+    return str(uuid.uuid4())
 
 def is_streamlit_cloud():
     """Verifica si estamos en Streamlit Cloud"""
@@ -41,45 +47,61 @@ def get_strava_tokens():
         return None
 
 def streamlit_auth_flow():
-    """Flujo de autenticación para Streamlit"""
+    """Flujo de autenticación para Streamlit con redirección automática"""
     try:
         logger.info("Iniciando flujo de autenticación en Streamlit...")
         
+        # Generar estado único si no existe
+        if 'auth_state' not in st.session_state:
+            st.session_state.auth_state = generate_auth_state()
+        
+        # Verificar si hay código en la URL
+        query_params = st.experimental_get_query_params()
+        if 'code' in query_params and 'state' in query_params:
+            # Verificar que el state coincide
+            if query_params['state'][0] == st.session_state.auth_state:
+                logger.info("Código de autorización recibido, intercambiando por tokens...")
+                auth_code = query_params['code'][0]
+                
+                # Intercambiar código por tokens
+                response = requests.post(
+                    STRAVA_CONFIG['token_url'],
+                    data={
+                        'client_id': STRAVA_CONFIG['client_id'],
+                        'client_secret': STRAVA_CONFIG['client_secret'],
+                        'code': auth_code,
+                        'grant_type': 'authorization_code'
+                    }
+                )
+                response.raise_for_status()
+                
+                tokens = response.json()
+                tokens['expires_at'] = time.time() + tokens['expires_in']
+                
+                with open('strava_tokens.json', 'w') as f:
+                    json.dump(tokens, f)
+                
+                logger.info("Autenticación completada exitosamente")
+                st.success("¡Autenticación exitosa! Los datos se actualizarán automáticamente.")
+                
+                # Limpiar parámetros de la URL
+                st.experimental_set_query_params()
+                
+                return tokens
+            else:
+                logger.error("State no coincide, posible ataque CSRF")
+                st.error("Error de seguridad en la autenticación. Por favor, intenta de nuevo.")
+                return None
+        
         # Mostrar URL de autorización
-        auth_url = f"{STRAVA_CONFIG['auth_url']}?client_id={STRAVA_CONFIG['client_id']}&response_type=code&redirect_uri={STRAVA_CONFIG['redirect_uri']}&scope={STRAVA_CONFIG['scope']}"
+        auth_url = f"{STRAVA_CONFIG['auth_url']}?client_id={STRAVA_CONFIG['client_id']}&response_type=code&redirect_uri={STRAVA_CONFIG['redirect_uri']}&scope={STRAVA_CONFIG['scope']}&state={st.session_state.auth_state}"
         
         st.markdown("### Autenticación de Strava")
-        st.markdown("Por favor, sigue estos pasos:")
-        st.markdown("1. Haz clic en el siguiente enlace para autorizar la aplicación:")
+        st.markdown("Haz clic en el siguiente enlace para autorizar la aplicación:")
         st.markdown(f"[Autorizar en Strava]({auth_url})")
-        st.markdown("2. Después de autorizar, copia el código de la URL y pégalo aquí:")
         
-        # Input para el código
-        auth_code = st.text_input("Código de autorización")
-        
-        if auth_code:
-            # Intercambiar código por tokens
-            logger.info("Intercambiando código por tokens...")
-            response = requests.post(
-                STRAVA_CONFIG['token_url'],
-                data={
-                    'client_id': STRAVA_CONFIG['client_id'],
-                    'client_secret': STRAVA_CONFIG['client_secret'],
-                    'code': auth_code,
-                    'grant_type': 'authorization_code'
-                }
-            )
-            response.raise_for_status()
-            
-            tokens = response.json()
-            tokens['expires_at'] = time.time() + tokens['expires_in']
-            
-            with open('strava_tokens.json', 'w') as f:
-                json.dump(tokens, f)
-            
-            logger.info("Autenticación completada exitosamente")
-            st.success("¡Autenticación exitosa! Los datos se actualizarán automáticamente.")
-            return tokens
+        with st.spinner("Esperando autorización..."):
+            time.sleep(1)  # Dar tiempo para que el usuario haga clic
             
     except Exception as e:
         logger.error(f"Error en el flujo de autenticación: {str(e)}")

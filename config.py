@@ -20,26 +20,22 @@ def get_strava_credentials():
     
     return client_id, client_secret
 
-# Configuración de la API de Strava
-STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET = get_strava_credentials()
-STRAVA_REDIRECT_URI = 'http://localhost:8000/callback'
-STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize'
-STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token'
-STRAVA_API_URL = 'https://www.strava.com/api/v3'
-STRAVA_SCOPE = 'read,activity:read,activity:read_all'
-
-# Configuración del servidor
-PORT = 8000
-
-# Configuración específica de Strava
+# Configuración de Strava
 STRAVA_CONFIG = {
-    'client_id': STRAVA_CLIENT_ID,
-    'client_secret': STRAVA_CLIENT_SECRET,
-    'redirect_uri': STRAVA_REDIRECT_URI,
-    'auth_url': STRAVA_AUTH_URL,
-    'token_url': STRAVA_TOKEN_URL,
-    'api_url': STRAVA_API_URL,
-    'scope': STRAVA_SCOPE
+    'client_id': st.secrets["strava"]["client_id"],
+    'client_secret': st.secrets["strava"]["client_secret"],
+    'auth_url': 'https://www.strava.com/oauth/authorize',
+    'token_url': 'https://www.strava.com/oauth/token',
+    'api_url': 'https://www.strava.com/api/v3',
+    'redirect_uri': st.secrets["strava"]["redirect_uri"],
+    'scope': 'read,activity:read'
+}
+
+# Configuración de la aplicación
+APP_CONFIG = {
+    'data_file': 'strava_activities.json',
+    'tokens_file': 'strava_tokens.json',
+    'update_interval': 86400  # 24 horas en segundos
 }
 
 def validate_config():
