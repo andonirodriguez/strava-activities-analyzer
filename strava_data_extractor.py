@@ -1,7 +1,13 @@
 import json
 import os
+import logging
 from strava_client import StravaClient
-from strava_auth import StravaAuth
+from strava_auth import StravaAuth, get_strava_tokens
+from config import STRAVA_CONFIG
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def save_activities(activities, filename='strava_activities.json', silent=False):
     """
@@ -36,56 +42,44 @@ def save_activities(activities, filename='strava_activities.json', silent=False)
         return False
 
 def actualizar_datos(silent=False):
-    """
-    Actualiza los datos de Strava
-    Args:
-        silent (bool): Si es True, no muestra mensajes en consola
-    Returns:
-        dict: {
-            'success': bool,
-            'activities': int,
-            'error': str (si hay error)
-        }
-    """
+    """Actualiza los datos de actividades de Strava"""
     try:
-        # Inicializar el cliente
-        client = StravaClient()
+        logger.info("Iniciando actualización de datos...")
+        
+        # Obtener tokens
+        logger.info("Obteniendo tokens de Strava...")
+        tokens = get_strava_tokens()
+        if not tokens:
+            error_msg = "No se pudieron obtener los tokens de Strava"
+            logger.error(error_msg)
+            return {'success': False, 'error': error_msg}
+        
+        # Crear cliente de Strava
+        logger.info("Creando cliente de Strava...")
+        client = StravaClient(tokens['access_token'])
         
         # Obtener actividades
-        if not silent:
-            print("\nObteniendo actividades...")
-        activities = client.get_all_activities()
+        logger.info("Obteniendo actividades de Strava...")
+        activities = client.get_activities()
+        if not activities:
+            error_msg = "No se pudieron obtener las actividades"
+            logger.error(error_msg)
+            return {'success': False, 'error': error_msg}
         
-        # Guardar resultados
-        if activities:
-            if not silent:
-                print(f"\nGuardando {len(activities)} actividades...")
-            if save_activities(activities, silent=silent):
-                return {
-                    'success': True,
-                    'activities': len(activities)
-                }
-            else:
-                return {
-                    'success': False,
-                    'error': "Error al guardar las actividades"
-                }
-        else:
-            if not silent:
-                print("No se encontraron actividades")
-            return {
-                'success': True,
-                'activities': 0
-            }
-            
+        logger.info(f"Se obtuvieron {len(activities)} actividades")
+        
+        # Guardar actividades en archivo JSON
+        logger.info("Guardando actividades en archivo JSON...")
+        with open('strava_activities.json', 'w', encoding='utf-8') as f:
+            json.dump(activities, f, ensure_ascii=False, indent=2)
+        
+        logger.info("Actualización completada exitosamente")
+        return {'success': True, 'activities': len(activities)}
+        
     except Exception as e:
-        error_msg = str(e)
-        if not silent:
-            print(f"Error: {error_msg}")
-        return {
-            'success': False,
-            'error': error_msg
-        }
+        error_msg = f"Error durante la actualización: {str(e)}"
+        logger.error(error_msg)
+        return {'success': False, 'error': error_msg}
 
 def main():
     """Función principal para ejecutar el script directamente"""
