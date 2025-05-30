@@ -34,23 +34,21 @@ def get_strava_tokens():
                 return refresh_tokens(tokens['refresh_token'])
         else:
             logger.info("No se encontraron tokens, iniciando flujo de autenticación...")
-            if is_streamlit_cloud():
-                return streamlit_auth_flow()
-            else:
-                return start_auth_flow()
+            return streamlit_auth_flow()
             
     except Exception as e:
         logger.error(f"Error obteniendo tokens: {str(e)}")
         return None
 
 def streamlit_auth_flow():
-    """Flujo de autenticación para Streamlit Cloud"""
+    """Flujo de autenticación para Streamlit"""
     try:
         logger.info("Iniciando flujo de autenticación en Streamlit...")
         
         # Mostrar URL de autorización
         auth_url = f"{STRAVA_CONFIG['auth_url']}?client_id={STRAVA_CONFIG['client_id']}&response_type=code&redirect_uri={STRAVA_CONFIG['redirect_uri']}&scope={STRAVA_CONFIG['scope']}"
-        st.markdown(f"### Autenticación de Strava")
+        
+        st.markdown("### Autenticación de Strava")
         st.markdown("Por favor, sigue estos pasos:")
         st.markdown("1. Haz clic en el siguiente enlace para autorizar la aplicación:")
         st.markdown(f"[Autorizar en Strava]({auth_url})")
