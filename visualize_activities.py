@@ -19,41 +19,6 @@ except ImportError as e:
     logger.error(f"Error importando strava_data_extractor: {str(e)}")
     st.error("Error al cargar los módulos necesarios. Por favor, verifica que todos los archivos estén presentes.")
 
-# Configuración de autenticación
-def check_password():
-    """Returns `True` if the user had the correct password."""
-    logger.info("Checking password...")
-    try:
-        def password_entered():
-            """Checks whether a password entered by the user is correct."""
-            if st.session_state["password"] == st.secrets["credentials"]["password"]:
-                st.session_state["password_correct"] = True
-                del st.session_state["password"]  # Don't store password.
-            else:
-                st.session_state["password_correct"] = False
-
-        if "password_correct" not in st.session_state:
-            # First run, show input for password.
-            st.text_input(
-                "Contraseña", type="password", on_change=password_entered, key="password"
-            )
-            return False
-        elif not st.session_state["password_correct"]:
-            # Password not correct, show input + error.
-            st.text_input(
-                "Contraseña", type="password", on_change=password_entered, key="password"
-            )
-            st.error("😕 Contraseña incorrecta")
-            return False
-        else:
-            # Password correct.
-            logger.info("Password correct!")
-            return True
-    except Exception as e:
-        logger.error(f"Error in check_password: {str(e)}")
-        st.error(f"Error de autenticación: {str(e)}")
-        return False
-
 def obtener_ultima_actualizacion():
     """Obtiene la fecha de última modificación del archivo JSON"""
     try:
@@ -429,5 +394,4 @@ def main():
         st.error(f"Error en la aplicación: {str(e)}")
 
 if __name__ == "__main__":
-    if check_password():
-        main() 
+    main() 
