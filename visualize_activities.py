@@ -8,6 +8,35 @@ import os
 import time
 from strava_data_extractor import actualizar_datos
 
+# Configuración de autenticación
+def check_password():
+    """Returns `True` if the user had the correct password."""
+
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if st.session_state["password"] == st.secrets["credentials"]["password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Don't store password.
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # First run, show input for password.
+        st.text_input(
+            "Contraseña", type="password", on_change=password_entered, key="password"
+        )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error.
+        st.text_input(
+            "Contraseña", type="password", on_change=password_entered, key="password"
+        )
+        st.error("😕 Contraseña incorrecta")
+        return False
+    else:
+        # Password correct.
+        return True
+
 def obtener_ultima_actualizacion():
     """Obtiene la fecha de última modificación del archivo JSON"""
     try:
@@ -359,4 +388,5 @@ def main():
         st.info("No hay actividades de ciclismo de más de 100km en el período seleccionado.")
 
 if __name__ == "__main__":
-    main() 
+    if check_password():
+        main() 

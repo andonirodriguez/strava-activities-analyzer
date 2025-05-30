@@ -1,20 +1,20 @@
 [tool.poetry]
-name = "strava-etls"
+name = "strava-activities-analyzer"
 version = "0.1.0"
-description = "ETL y visualización de datos de Strava"
-authors = ["Your Name <your.email@example.com>"]
-readme = "README.md"
-package-mode = false
+description = "Aplicación personal para analizar y visualizar actividades de Strava"
+authors = ["Andoni Rodriguez"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-requests = "^2.31.0"
 streamlit = "^1.32.0"
-pandas = "^2.2.0"
-plotly = "^5.18.0"
+pandas = "^2.2.1"
+plotly = "^5.19.0"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+flask = "^3.0.2"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
