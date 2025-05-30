@@ -15,19 +15,38 @@ class StravaClient:
         }
         logger.info("Cliente de Strava inicializado")
 
-    def get_activities(self, per_page=30):
-        """Obtiene las actividades de Strava"""
+    def get_activities(self, per_page=200):
+        """Obtiene todas las actividades de Strava usando paginación"""
         try:
-            logger.info(f"Obteniendo actividades (per_page={per_page})...")
+            logger.info("Iniciando obtención de actividades...")
             url = f"{self.base_url}/athlete/activities"
-            params = {'per_page': per_page}
+            all_activities = []
+            page = 1
             
-            response = requests.get(url, headers=self.headers, params=params)
-            response.raise_for_status()
+            while True:
+                logger.info(f"Obteniendo página {page} de actividades...")
+                params = {
+                    'per_page': per_page,
+                    'page': page
+                }
+                
+                response = requests.get(url, headers=self.headers, params=params)
+                response.raise_for_status()
+                
+                activities = response.json()
+                if not activities:  # Si no hay más actividades, terminar
+                    break
+                    
+                all_activities.extend(activities)
+                logger.info(f"Se obtuvieron {len(activities)} actividades en la página {page}")
+                
+                if len(activities) < per_page:  # Si hay menos actividades que el máximo por página, es la última
+                    break
+                    
+                page += 1
             
-            activities = response.json()
-            logger.info(f"Se obtuvieron {len(activities)} actividades")
-            return activities
+            logger.info(f"Total de actividades obtenidas: {len(all_activities)}")
+            return all_activities
             
         except requests.exceptions.RequestException as e:
             logger.error(f"Error en la petición a Strava: {str(e)}")
