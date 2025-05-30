@@ -58,6 +58,13 @@ def streamlit_auth_flow():
             auth_code = st.query_params['code']
             logger.info("Código de autorización recibido, intercambiando por tokens...")
             
+            # Verificar si el código ya fue usado
+            if 'auth_code_used' in st.session_state:
+                logger.error("Este código de autorización ya fue usado")
+                st.error("Este código de autorización ya fue usado. Por favor, intenta de nuevo.")
+                st.query_params.clear()
+                return None
+            
             # Preparar datos para la solicitud
             token_data = {
                 'client_id': STRAVA_CONFIG['client_id'],
@@ -67,6 +74,7 @@ def streamlit_auth_flow():
             }
             
             logger.info(f"Enviando solicitud a Strava con client_id: {STRAVA_CONFIG['client_id']}")
+            logger.info(f"URL de redirección configurada: {STRAVA_CONFIG['redirect_uri']}")
             
             # Intercambiar código por tokens
             response = requests.post(
@@ -77,7 +85,14 @@ def streamlit_auth_flow():
             if response.status_code != 200:
                 logger.error(f"Error en la respuesta de Strava: {response.status_code}")
                 logger.error(f"Respuesta: {response.text}")
-                st.error(f"Error en la autenticación: {response.text}")
+                
+                # Marcar el código como usado
+                st.session_state.auth_code_used = True
+                
+                if "invalid" in response.text:
+                    st.error("El código de autorización no es válido o ha expirado. Por favor, intenta de nuevo.")
+                else:
+                    st.error(f"Error en la autenticación: {response.text}")
                 return None
                 
             tokens = response.json()
@@ -92,8 +107,10 @@ def streamlit_auth_flow():
             logger.info("Autenticación completada exitosamente")
             st.success("¡Autenticación exitosa! Los datos se actualizarán automáticamente.")
             
-            # Limpiar parámetros de la URL
+            # Limpiar parámetros de la URL y el estado
             st.query_params.clear()
+            if 'auth_code_used' in st.session_state:
+                del st.session_state.auth_code_used
             
             return tokens
         
@@ -103,6 +120,11 @@ def streamlit_auth_flow():
         st.markdown("### Autenticación de Strava")
         st.markdown("Haz clic en el siguiente enlace para autorizar la aplicación:")
         st.markdown(f"[Autorizar en Strava]({auth_url})")
+        
+        # Mostrar información de depuración
+        with st.expander("Información de depuración"):
+            st.write(f"URL de redirección configurada: {STRAVA_CONFIG['redirect_uri']}")
+            st.write(f"Client ID: {STRAVA_CONFIG['client_id']}")
         
         with st.spinner("Esperando autorización..."):
             time.sleep(1)  # Dar tiempo para que el usuario haga clic
