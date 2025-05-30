@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "strava-etls"
+version = "0.1.0"
+description = "ETL y visualización de datos de Strava"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "^2.31.0"
+streamlit = "^1.32.0"
+pandas = "^2.2.0"
+plotly = "^5.18.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+visualize = "streamlit:run" 
