@@ -7,138 +7,15 @@ import threading
 import webbrowser
 from flask import Flask, request
 from config import STRAVA_CONFIG
+import streamlit as st
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class StravaAuth:
-    def __init__(self):
-        self.tokens_file = 'strava_tokens.json'
-        self.tokens = self._load_tokens()
-        self.flask_app = None
-        self.auth_code = None
-
-    def _load_tokens(self):
-        try:
-            logger.info("Verificando tokens existentes...")
-            if os.path.exists(self.tokens_file):
-                with open(self.tokens_file, 'r') as f:
-                    tokens = json.load(f)
-                
-                # Verificar si el token ha expirado
-                if time.time() < tokens.get('expires_at', 0):
-                    logger.info("Token válido encontrado")
-                    return tokens
-                else:
-                    logger.info("Token expirado, renovando...")
-                    return self.refresh_token()
-            else:
-                logger.info("No se encontraron tokens, iniciando flujo de autenticación...")
-                return self._automatic_oauth_flow()
-            
-        except Exception as e:
-            logger.error(f"Error obteniendo tokens: {str(e)}")
-            return None
-
-    def _save_tokens(self, tokens):
-        with open(self.tokens_file, 'w') as f:
-            json.dump(tokens, f)
-        self.tokens = tokens
-
-    def get_auth_url(self):
-        params = {
-            'client_id': STRAVA_CONFIG['client_id'],
-            'redirect_uri': STRAVA_CONFIG['redirect_uri'],
-            'response_type': 'code',
-            'approval_prompt': 'force',
-            'scope': STRAVA_CONFIG['scope']
-        }
-        return f"{STRAVA_CONFIG['auth_url']}?{'&'.join(f'{k}={v}' for k, v in params.items())}"
-
-    def exchange_code_for_token(self, code):
-        response = requests.post(
-            STRAVA_CONFIG['token_url'],
-            data={
-                'client_id': STRAVA_CONFIG['client_id'],
-                'client_secret': STRAVA_CONFIG['client_secret'],
-                'code': code,
-                'grant_type': 'authorization_code'
-            }
-        )
-        if response.status_code == 200:
-            self._save_tokens(response.json())
-            return response.json()
-        else:
-            raise Exception(f"Error al intercambiar código: {response.text}")
-
-    def refresh_token(self):
-        if not self.tokens or 'refresh_token' not in self.tokens:
-            raise Exception("No hay refresh token disponible")
-        response = requests.post(
-            STRAVA_CONFIG['token_url'],
-            data={
-                'client_id': STRAVA_CONFIG['client_id'],
-                'client_secret': STRAVA_CONFIG['client_secret'],
-                'refresh_token': self.tokens['refresh_token'],
-                'grant_type': 'refresh_token'
-            }
-        )
-        if response.status_code == 200:
-            self._save_tokens(response.json())
-            return response.json()
-        else:
-            raise Exception(f"Error al refrescar token: {response.text}")
-
-    def get_valid_token(self):
-        if not self.tokens:
-            self._automatic_oauth_flow()
-        # Verificar si el token ha expirado o está por expirar (menos de 1 hora)
-        if time.time() >= self.tokens.get('expires_at', 0) - 3600:
-            return self.refresh_token()['access_token']
-        return self.tokens['access_token']
-
-    def _automatic_oauth_flow(self):
-        print("No hay tokens válidos. Iniciando flujo de autenticación OAuth automático...")
-        self._start_flask_server()
-        auth_url = self.get_auth_url()
-        print(f"Abriendo navegador en: {auth_url}")
-        webbrowser.open(auth_url)
-        self._wait_for_auth_code()
-        if self.auth_code:
-            self.exchange_code_for_token(self.auth_code)
-        else:
-            raise Exception("No se pudo obtener el código de autorización.")
-
-    def _start_flask_server(self):
-        self.flask_app = Flask(__name__)
-        self.auth_code = None
-        self._server_thread = threading.Thread(target=self._run_flask, daemon=True)
-        self._server_thread.start()
-
-        @self.flask_app.route('/callback')
-        def callback():
-            code = request.args.get('code')
-            self.auth_code = code
-            # Mensaje de éxito para el usuario
-            return "<h2>Autenticación exitosa. Puedes cerrar esta ventana y volver al terminal.</h2>"
-
-    def _run_flask(self):
-        # Extraer el puerto del redirect_uri
-        from urllib.parse import urlparse
-        parsed = urlparse(STRAVA_CONFIG['redirect_uri'])
-        port = parsed.port or 8000
-        self.flask_app.run(port=port, debug=False, use_reloader=False)
-
-    def _wait_for_auth_code(self):
-        import time
-        print("Esperando autorización del usuario...")
-        for _ in range(300):  # Espera hasta 5 minutos
-            if self.auth_code:
-                break
-            time.sleep(1)
-        if not self.auth_code:
-            raise Exception("Timeout esperando el código de autorización.")
+def is_streamlit_cloud():
+    """Verifica si estamos en Streamlit Cloud"""
+    return os.environ.get('STREAMLIT_SERVER_PORT') is not None
 
 def get_strava_tokens():
     """Obtiene los tokens de Strava, renovándolos si es necesario"""
@@ -157,10 +34,58 @@ def get_strava_tokens():
                 return refresh_tokens(tokens['refresh_token'])
         else:
             logger.info("No se encontraron tokens, iniciando flujo de autenticación...")
-            return start_auth_flow()
+            if is_streamlit_cloud():
+                return streamlit_auth_flow()
+            else:
+                return start_auth_flow()
             
     except Exception as e:
         logger.error(f"Error obteniendo tokens: {str(e)}")
+        return None
+
+def streamlit_auth_flow():
+    """Flujo de autenticación para Streamlit Cloud"""
+    try:
+        logger.info("Iniciando flujo de autenticación en Streamlit...")
+        
+        # Mostrar URL de autorización
+        auth_url = f"{STRAVA_CONFIG['auth_url']}?client_id={STRAVA_CONFIG['client_id']}&response_type=code&redirect_uri={STRAVA_CONFIG['redirect_uri']}&scope={STRAVA_CONFIG['scope']}"
+        st.markdown(f"### Autenticación de Strava")
+        st.markdown("Por favor, sigue estos pasos:")
+        st.markdown("1. Haz clic en el siguiente enlace para autorizar la aplicación:")
+        st.markdown(f"[Autorizar en Strava]({auth_url})")
+        st.markdown("2. Después de autorizar, copia el código de la URL y pégalo aquí:")
+        
+        # Input para el código
+        auth_code = st.text_input("Código de autorización")
+        
+        if auth_code:
+            # Intercambiar código por tokens
+            logger.info("Intercambiando código por tokens...")
+            response = requests.post(
+                STRAVA_CONFIG['token_url'],
+                data={
+                    'client_id': STRAVA_CONFIG['client_id'],
+                    'client_secret': STRAVA_CONFIG['client_secret'],
+                    'code': auth_code,
+                    'grant_type': 'authorization_code'
+                }
+            )
+            response.raise_for_status()
+            
+            tokens = response.json()
+            tokens['expires_at'] = time.time() + tokens['expires_in']
+            
+            with open('strava_tokens.json', 'w') as f:
+                json.dump(tokens, f)
+            
+            logger.info("Autenticación completada exitosamente")
+            st.success("¡Autenticación exitosa! Los datos se actualizarán automáticamente.")
+            return tokens
+            
+    except Exception as e:
+        logger.error(f"Error en el flujo de autenticación: {str(e)}")
+        st.error(f"Error en la autenticación: {str(e)}")
         return None
 
 def refresh_tokens(refresh_token):
@@ -192,9 +117,9 @@ def refresh_tokens(refresh_token):
         return None
 
 def start_auth_flow():
-    """Inicia el flujo de autenticación OAuth2"""
+    """Inicia el flujo de autenticación OAuth2 (solo para desarrollo local)"""
     try:
-        logger.info("Iniciando flujo de autenticación...")
+        logger.info("Iniciando flujo de autenticación local...")
         app = Flask(__name__)
         auth_code = None
         

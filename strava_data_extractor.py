@@ -70,11 +70,13 @@ def actualizar_datos(silent=False):
         
         # Guardar actividades en archivo JSON
         logger.info("Guardando actividades en archivo JSON...")
-        with open('strava_activities.json', 'w', encoding='utf-8') as f:
-            json.dump(activities, f, ensure_ascii=False, indent=2)
-        
-        logger.info("Actualización completada exitosamente")
-        return {'success': True, 'activities': len(activities)}
+        if save_activities(activities, silent=silent):
+            logger.info("Actualización completada exitosamente")
+            return {'success': True, 'activities': len(activities)}
+        else:
+            error_msg = "Error al guardar las actividades"
+            logger.error(error_msg)
+            return {'success': False, 'error': error_msg}
         
     except Exception as e:
         error_msg = f"Error durante la actualización: {str(e)}"
@@ -91,6 +93,8 @@ def main():
             print(auth.get_auth_url())
             print("\nDespués de autorizar, copia el código de la URL y ejecuta:")
             print("python strava_auth.py <código>")
+        else:
+            print(f"Error: {resultado['error']}")
 
 if __name__ == "__main__":
     main()
