@@ -2,7 +2,7 @@ import json
 import os
 import logging
 from strava_client import StravaClient
-from strava_auth import StravaAuth, get_strava_tokens
+from strava_auth import get_strava_tokens
 from config import STRAVA_CONFIG
 
 # Configurar logging

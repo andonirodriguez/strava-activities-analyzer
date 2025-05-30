@@ -7,11 +7,17 @@ import json
 import os
 import time
 import logging
-from strava_data_extractor import actualizar_datos
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+try:
+    from strava_data_extractor import actualizar_datos
+    logger.info("Módulo strava_data_extractor importado correctamente")
+except ImportError as e:
+    logger.error(f"Error importando strava_data_extractor: {str(e)}")
+    st.error("Error al cargar los módulos necesarios. Por favor, verifica que todos los archivos estén presentes.")
 
 # Configuración de autenticación
 def check_password():
