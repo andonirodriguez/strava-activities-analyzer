@@ -53,19 +53,17 @@ def streamlit_auth_flow():
     try:
         logger.info("Iniciando flujo de autenticación en Streamlit...")
         
-        # Generar estado único si no existe
-        if 'auth_state' not in st.session_state:
-            st.session_state.auth_state = generate_auth_state()
-            logger.info(f"Nuevo estado generado: {st.session_state.auth_state}")
-        
         # Verificar si hay código en la URL usando la nueva API de Streamlit
         if 'code' in st.query_params and 'state' in st.query_params:
             received_state = st.query_params['state']
             logger.info(f"Estado recibido: {received_state}")
-            logger.info(f"Estado esperado: {st.session_state.auth_state}")
+            
+            # Obtener el estado guardado
+            saved_state = st.session_state.get('auth_state')
+            logger.info(f"Estado guardado: {saved_state}")
             
             # Verificar que el state coincide
-            if received_state == st.session_state.auth_state:
+            if saved_state and received_state == saved_state:
                 logger.info("Código de autorización recibido, intercambiando por tokens...")
                 auth_code = st.query_params['code']
                 
@@ -93,14 +91,21 @@ def streamlit_auth_flow():
                 logger.info("Autenticación completada exitosamente")
                 st.success("¡Autenticación exitosa! Los datos se actualizarán automáticamente.")
                 
-                # Limpiar parámetros de la URL
+                # Limpiar parámetros de la URL y el estado
                 st.query_params.clear()
+                if 'auth_state' in st.session_state:
+                    del st.session_state.auth_state
                 
                 return tokens
             else:
-                logger.error(f"State no coincide. Recibido: {received_state}, Esperado: {st.session_state.auth_state}")
+                logger.error(f"State no coincide. Recibido: {received_state}, Guardado: {saved_state}")
                 st.error("Error de seguridad en la autenticación. Por favor, intenta de nuevo.")
                 return None
+        
+        # Generar nuevo estado solo si no hay uno guardado
+        if 'auth_state' not in st.session_state:
+            st.session_state.auth_state = generate_auth_state()
+            logger.info(f"Nuevo estado generado: {st.session_state.auth_state}")
         
         # Mostrar URL de autorización
         auth_url = f"{STRAVA_CONFIG['auth_url']}?client_id={STRAVA_CONFIG['client_id']}&response_type=code&redirect_uri={STRAVA_CONFIG['redirect_uri']}&scope={STRAVA_CONFIG['scope']}&state={st.session_state.auth_state}"
