@@ -3,25 +3,26 @@ import os
 import logging
 from strava_client import StravaClient
 from strava_auth import get_strava_tokens
-from config import STRAVA_CONFIG
+from config import STRAVA_CONFIG, APP_CONFIG
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def save_activities(activities, filename='strava_activities.json', silent=False):
+def save_activities(activities, filename=None, silent=False):
     """
     Guarda las actividades en un archivo JSON con manejo de errores
     Args:
         activities: Lista de actividades a guardar
-        filename: Nombre del archivo donde guardar
+        filename: Nombre del archivo donde guardar (opcional)
         silent: Si es True, no muestra mensajes en consola
     """
     try:
-        # Intentar crear el archivo si no existe
-        if not os.path.exists(filename):
-            with open(filename, 'w') as f:
-                json.dump([], f)
+        if filename is None:
+            filename = APP_CONFIG['data_file']
+            
+        # Asegurarse de que el directorio existe
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         
         # Guardar las actividades
         with open(filename, 'w', encoding='utf-8') as f:

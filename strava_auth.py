@@ -6,7 +6,7 @@ import requests
 import threading
 import webbrowser
 from flask import Flask, request
-from config import STRAVA_CONFIG
+from config import STRAVA_CONFIG, APP_CONFIG
 import streamlit as st
 import uuid
 from urllib.parse import parse_qs, urlparse
@@ -27,8 +27,10 @@ def get_strava_tokens():
     """Obtiene los tokens de Strava, renovándolos si es necesario"""
     try:
         logger.info("Verificando tokens existentes...")
-        if os.path.exists('strava_tokens.json'):
-            with open('strava_tokens.json', 'r') as f:
+        tokens_file = APP_CONFIG['tokens_file']
+        
+        if os.path.exists(tokens_file):
+            with open(tokens_file, 'r') as f:
                 tokens = json.load(f)
             
             # Verificar si el token ha expirado
@@ -54,14 +56,18 @@ def streamlit_auth_flow():
         # Generar estado único si no existe
         if 'auth_state' not in st.session_state:
             st.session_state.auth_state = generate_auth_state()
+            logger.info(f"Nuevo estado generado: {st.session_state.auth_state}")
         
-        # Verificar si hay código en la URL
-        query_params = st.experimental_get_query_params()
-        if 'code' in query_params and 'state' in query_params:
+        # Verificar si hay código en la URL usando la nueva API de Streamlit
+        if 'code' in st.query_params and 'state' in st.query_params:
+            received_state = st.query_params['state']
+            logger.info(f"Estado recibido: {received_state}")
+            logger.info(f"Estado esperado: {st.session_state.auth_state}")
+            
             # Verificar que el state coincide
-            if query_params['state'][0] == st.session_state.auth_state:
+            if received_state == st.session_state.auth_state:
                 logger.info("Código de autorización recibido, intercambiando por tokens...")
-                auth_code = query_params['code'][0]
+                auth_code = st.query_params['code']
                 
                 # Intercambiar código por tokens
                 response = requests.post(
@@ -78,18 +84,21 @@ def streamlit_auth_flow():
                 tokens = response.json()
                 tokens['expires_at'] = time.time() + tokens['expires_in']
                 
-                with open('strava_tokens.json', 'w') as f:
+                # Asegurarse de que el directorio existe
+                os.makedirs(os.path.dirname(APP_CONFIG['tokens_file']), exist_ok=True)
+                
+                with open(APP_CONFIG['tokens_file'], 'w') as f:
                     json.dump(tokens, f)
                 
                 logger.info("Autenticación completada exitosamente")
                 st.success("¡Autenticación exitosa! Los datos se actualizarán automáticamente.")
                 
                 # Limpiar parámetros de la URL
-                st.experimental_set_query_params()
+                st.query_params.clear()
                 
                 return tokens
             else:
-                logger.error("State no coincide, posible ataque CSRF")
+                logger.error(f"State no coincide. Recibido: {received_state}, Esperado: {st.session_state.auth_state}")
                 st.error("Error de seguridad en la autenticación. Por favor, intenta de nuevo.")
                 return None
         
@@ -126,7 +135,10 @@ def refresh_tokens(refresh_token):
         tokens = response.json()
         tokens['expires_at'] = time.time() + tokens['expires_in']
         
-        with open('strava_tokens.json', 'w') as f:
+        # Asegurarse de que el directorio existe
+        os.makedirs(os.path.dirname(APP_CONFIG['tokens_file']), exist_ok=True)
+        
+        with open(APP_CONFIG['tokens_file'], 'w') as f:
             json.dump(tokens, f)
         
         logger.info("Tokens renovados exitosamente")
