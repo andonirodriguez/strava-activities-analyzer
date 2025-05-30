@@ -58,18 +58,28 @@ def streamlit_auth_flow():
             auth_code = st.query_params['code']
             logger.info("Código de autorización recibido, intercambiando por tokens...")
             
+            # Preparar datos para la solicitud
+            token_data = {
+                'client_id': STRAVA_CONFIG['client_id'],
+                'client_secret': STRAVA_CONFIG['client_secret'],
+                'code': auth_code,
+                'grant_type': 'authorization_code'
+            }
+            
+            logger.info(f"Enviando solicitud a Strava con client_id: {STRAVA_CONFIG['client_id']}")
+            
             # Intercambiar código por tokens
             response = requests.post(
                 STRAVA_CONFIG['token_url'],
-                data={
-                    'client_id': STRAVA_CONFIG['client_id'],
-                    'client_secret': STRAVA_CONFIG['client_secret'],
-                    'code': auth_code,
-                    'grant_type': 'authorization_code'
-                }
+                data=token_data
             )
-            response.raise_for_status()
             
+            if response.status_code != 200:
+                logger.error(f"Error en la respuesta de Strava: {response.status_code}")
+                logger.error(f"Respuesta: {response.text}")
+                st.error(f"Error en la autenticación: {response.text}")
+                return None
+                
             tokens = response.json()
             tokens['expires_at'] = time.time() + tokens['expires_in']
             
@@ -115,8 +125,12 @@ def refresh_tokens(refresh_token):
                 'grant_type': 'refresh_token'
             }
         )
-        response.raise_for_status()
         
+        if response.status_code != 200:
+            logger.error(f"Error en la respuesta de Strava: {response.status_code}")
+            logger.error(f"Respuesta: {response.text}")
+            return None
+            
         tokens = response.json()
         tokens['expires_at'] = time.time() + tokens['expires_in']
         
