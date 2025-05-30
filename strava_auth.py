@@ -6,7 +6,7 @@ import requests
 import threading
 import webbrowser
 from flask import Flask, request
-from config import STRAVA_CONFIG, DEFAULT_CONFIG, validate_config
+from config import STRAVA_CONFIG
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 class StravaAuth:
     def __init__(self):
-        validate_config()
         self.tokens_file = 'strava_tokens.json'
         self.tokens = self._load_tokens()
         self.flask_app = None
@@ -55,11 +54,11 @@ class StravaAuth:
             'approval_prompt': 'force',
             'scope': STRAVA_CONFIG['scope']
         }
-        return f"{DEFAULT_CONFIG['auth_url']}?{'&'.join(f'{k}={v}' for k, v in params.items())}"
+        return f"{STRAVA_CONFIG['auth_url']}?{'&'.join(f'{k}={v}' for k, v in params.items())}"
 
     def exchange_code_for_token(self, code):
         response = requests.post(
-            DEFAULT_CONFIG['token_url'],
+            STRAVA_CONFIG['token_url'],
             data={
                 'client_id': STRAVA_CONFIG['client_id'],
                 'client_secret': STRAVA_CONFIG['client_secret'],
@@ -77,7 +76,7 @@ class StravaAuth:
         if not self.tokens or 'refresh_token' not in self.tokens:
             raise Exception("No hay refresh token disponible")
         response = requests.post(
-            DEFAULT_CONFIG['token_url'],
+            STRAVA_CONFIG['token_url'],
             data={
                 'client_id': STRAVA_CONFIG['client_id'],
                 'client_secret': STRAVA_CONFIG['client_secret'],
