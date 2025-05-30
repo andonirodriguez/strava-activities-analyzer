@@ -31,18 +31,14 @@ STRAVA_SCOPE = 'read,activity:read,activity:read_all'
 # Configuración del servidor
 PORT = 8000
 
-# Configuración por defecto
-DEFAULT_CONFIG = {
-    'auth_url': STRAVA_AUTH_URL,
-    'token_url': STRAVA_TOKEN_URL,
-    'api_url': STRAVA_API_URL
-}
-
 # Configuración específica de Strava
 STRAVA_CONFIG = {
     'client_id': STRAVA_CLIENT_ID,
     'client_secret': STRAVA_CLIENT_SECRET,
     'redirect_uri': STRAVA_REDIRECT_URI,
+    'auth_url': STRAVA_AUTH_URL,
+    'token_url': STRAVA_TOKEN_URL,
+    'api_url': STRAVA_API_URL,
     'scope': STRAVA_SCOPE
 }
 

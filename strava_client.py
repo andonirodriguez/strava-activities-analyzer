@@ -1,46 +1,19 @@
 import requests
 import logging
-from strava_auth import StravaAuth
-from config import DEFAULT_CONFIG, STRAVA_API_URL
+from config import STRAVA_CONFIG
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class StravaClient:
-    def __init__(self):
-        self.auth = StravaAuth()
-        self.base_url = DEFAULT_CONFIG['api_url']
-        logger.info("Cliente de Strava inicializado")
-
-    def _get_headers(self):
-        return {
-            'Authorization': f'Bearer {self.auth.get_valid_token()}'
+    def __init__(self, access_token):
+        self.access_token = access_token
+        self.base_url = STRAVA_CONFIG['api_url']
+        self.headers = {
+            'Authorization': f'Bearer {access_token}'
         }
-
-    def get_all_activities(self, per_page=30):
-        """Obtiene todas las actividades del usuario"""
-        activities = []
-        page = 1
-        
-        while True:
-            response = requests.get(
-                f"{self.base_url}/athlete/activities",
-                headers=self._get_headers(),
-                params={'per_page': per_page, 'page': page}
-            )
-            
-            if response.status_code != 200:
-                raise Exception(f"Error al obtener actividades: {response.text}")
-            
-            page_activities = response.json()
-            if not page_activities:
-                break
-                
-            activities.extend(page_activities)
-            page += 1
-            
-        return activities 
+        logger.info("Cliente de Strava inicializado")
 
     def get_activities(self, per_page=30):
         """Obtiene las actividades de Strava"""
@@ -49,7 +22,7 @@ class StravaClient:
             url = f"{self.base_url}/athlete/activities"
             params = {'per_page': per_page}
             
-            response = requests.get(url, headers=self._get_headers(), params=params)
+            response = requests.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             
             activities = response.json()
